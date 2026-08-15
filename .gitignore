@@ -31,6 +31,7 @@ project.fragment.lock.json
 artifacts/
 
 # --- C++ / CMake 編譯輸出與快取 ---
+dist/
 build/
 out/
 CMakeCache.txt
