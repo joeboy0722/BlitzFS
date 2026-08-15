@@ -1,0 +1,77 @@
+<UserControl x:Class="BlitzFS.UI.Views.SidebarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:BlitzFS.UI.ViewModels"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="220"
+             Background="{StaticResource BrushSurfaceDark}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="6,8">
+        <StackPanel>
+            <!-- 快速存取分類標題 -->
+            <TextBlock Text="快速存取" Foreground="{StaticResource BrushTextMuted}" FontSize="11" FontWeight="Bold" Margin="8,4,8,4" />
+
+            <!-- 快速存取項目清單 -->
+            <ItemsControl ItemsSource="{Binding QuickAccessItems}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Style="{StaticResource SidebarItemButtonStyle}" Click="OnSidebarItemClick" Tag="{Binding Path}" ToolTip="{Binding Path}">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="22" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <!-- 圖示 (依 IconKey 尋找或 fallback) -->
+                                <Path Grid.Column="0" Data="{Binding IconKey, Converter={x:Null}}" Fill="{StaticResource BrushAccentSky}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="12" VerticalAlignment="Center" Margin="4,0,0,0" TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Separator Background="{StaticResource BrushBorderSubtle}" Margin="4,10" />
+
+            <!-- 本機磁碟分類標題 -->
+            <TextBlock Text="本機磁碟" Foreground="{StaticResource BrushTextMuted}" FontSize="11" FontWeight="Bold" Margin="8,4,8,4" />
+
+            <!-- 磁碟機項目清單 (附帶容量進度條) -->
+            <ItemsControl ItemsSource="{Binding DriveItems}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Style="{StaticResource SidebarItemButtonStyle}" Click="OnSidebarItemClick" Tag="{Binding Path}" ToolTip="{Binding SpaceSummary}" Margin="2,2">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="22" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- 磁碟圖示 -->
+                                <Path Grid.Row="0" Grid.Column="0" Data="{StaticResource IconDrive}" Fill="{StaticResource BrushAccentAmber}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" />
+
+                                <!-- 磁碟名稱 -->
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" TextTrimming="CharacterEllipsis" />
+
+                                <!-- 磁碟容量條與剩餘空間 -->
+                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="4,4,0,2">
+                                    <ProgressBar Height="4" Maximum="100" Value="{Binding UsedPercent}" Background="{StaticResource BrushBackgroundDark}" Foreground="{StaticResource BrushAccentSky}" BorderThickness="0" Margin="0,0,0,2" />
+                                    <TextBlock Text="{Binding SpaceSummary}" Foreground="{StaticResource BrushTextMuted}" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

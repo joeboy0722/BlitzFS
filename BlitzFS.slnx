@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BlitzFS.Bridge/BlitzFS.Bridge.csproj" />
+    <Project Path="src/BlitzFS.UI/BlitzFS.UI.csproj" />
+  </Folder>
+</Solution>

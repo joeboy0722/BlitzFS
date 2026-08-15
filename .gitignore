@@ -1,0 +1,96 @@
+## ==========================================
+## BlitzFS - Git Ignore 設定檔
+## ==========================================
+
+# --- Visual Studio 與 IDE 快取與設定 ---
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.workspace
+
+# --- .NET 編譯產物 ---
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+**/x64/
+**/x86/
+**/ARM/
+**/ARM64/
+[Dd]ebug/
+[Rr]elease/
+[Xx]64/
+[Xx]86/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# --- C++ / CMake 編譯輸出與快取 ---
+build/
+out/
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_CPack_Packages/
+CPackConfig.cmake
+CPackSourceConfig.cmake
+
+# --- MSVC C++ 暫存與二進制產物 ---
+*.obj
+*.o
+*.lib
+*.a
+*.la
+*.lo
+*.exp
+*.ilk
+*.pdb
+*.idb
+*.tlog
+*.ipch
+*.pch
+*.res
+*.aps
+*.ncb
+*.opendb
+*.sdf
+*.cache
+*.log
+*.tmp
+
+# --- 執行檔與動態程式庫 (由本機編譯產生) ---
+*.exe
+*.dll
+*.so
+*.dylib
+
+# --- 測試結果與涵蓋率 ---
+TestResults/
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+
+# --- Windows 系統暫存檔 ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- macOS / Linux 系統檔案 ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes

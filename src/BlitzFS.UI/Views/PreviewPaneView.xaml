@@ -1,0 +1,136 @@
+<UserControl x:Class="BlitzFS.UI.Views.PreviewPaneView"
+             x:Name="RootControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:BlitzFS.UI.ViewModels"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="300"
+             Background="{StaticResource BrushSurfaceDark}">
+
+    <Border Padding="12">
+        <Grid>
+            <!-- 未選取檔案狀態提示 -->
+            <TextBlock x:Name="EmptyHintTextBlock"
+                       Text="選取檔案以進行即時預覽" 
+                       Foreground="{StaticResource BrushTextMuted}" 
+                       FontSize="12" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center" />
+
+            <!-- 檔案預覽詳細內容 -->
+            <ScrollViewer x:Name="PreviewScrollViewer" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Orientation="Vertical">
+                    <!-- 頂部多媒體大圖 / 影片即時播放器容器 -->
+                    <Border MinHeight="220" MaxHeight="520" Background="{StaticResource BrushBackgroundDark}" CornerRadius="8" Margin="0,0,0,12" ClipToBounds="True" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1">
+                        <Grid>
+                            <!-- 1. 靜態相片 / 影片首格縮圖 -->
+                            <Image x:Name="StaticPreviewImage"
+                                   Source="{Binding ElementName=RootControl, Path=SelectedItem.Thumbnail}"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   RenderOptions.BitmapScalingMode="HighQuality" />
+
+                            <!-- 影片中央播放浮動大按鈕 (點擊即時動態播放) -->
+                            <Button x:Name="BtnCenterPlay"
+                                    Visibility="Collapsed"
+                                    Style="{StaticResource ModernButtonStyle}"
+                                    Background="#80000000"
+                                    BorderBrush="#A0FFFFFF"
+                                    Width="56" Height="56"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Click="OnCenterPlayClick"
+                                    ToolTip="點擊動態播放影片預覽">
+                                <TextBlock Text="▶" FontSize="22" Foreground="#FFFFFF" Margin="3,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Button>
+
+                            <!-- 2. 動態影片即時播放預覽 (MediaElement) -->
+                            <MediaElement x:Name="VideoPlayer"
+                                          Visibility="Collapsed"
+                                          Stretch="Uniform"
+                                          LoadedBehavior="Manual"
+                                          UnloadedBehavior="Close"
+                                          IsMuted="True"
+                                          ScrubbingEnabled="True"
+                                          MediaEnded="OnVideoMediaEnded" />
+
+                            <!-- 影片控制懸浮條 (播放時顯示) -->
+                            <Border x:Name="VideoControlsOverlay"
+                                    Visibility="Collapsed"
+                                    VerticalAlignment="Bottom"
+                                    Background="#DD111827"
+                                    Padding="8,4"
+                                    Margin="6"
+                                    CornerRadius="6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <!-- 播放 / 暫停按鈕 -->
+                                    <Button x:Name="BtnPlayPause" Grid.Column="0" Style="{StaticResource ToolbarButtonStyle}" Padding="6,2" Click="OnPlayPauseClick" ToolTip="播放 / 暫停">
+                                        <TextBlock x:Name="TxtPlayPauseIcon" Text="⏸" Foreground="#FFFFFF" FontSize="11" />
+                                    </Button>
+                                    <TextBlock Grid.Column="1" Text="🎬 影片播放中 (點右側切換聲音)" Foreground="{StaticResource BrushTextMuted}" FontSize="10" VerticalAlignment="Center" Margin="6,0,0,0" />
+                                    <!-- 靜音開關按鈕 -->
+                                    <Button x:Name="BtnMuteToggle" Grid.Column="2" Style="{StaticResource ToolbarButtonStyle}" Padding="6,2" Click="OnMuteToggleClick" ToolTip="切換聲音">
+                                        <TextBlock x:Name="TxtMuteIcon" Text="🔇" Foreground="#FFFFFF" FontSize="11" />
+                                    </Button>
+                                    <!-- 停止按鈕 -->
+                                    <Button Grid.Column="3" Style="{StaticResource ToolbarButtonStyle}" Padding="6,2" Click="OnStopVideoClick" ToolTip="停止播放並返回縮圖">
+                                        <TextBlock Text="⏹" Foreground="#FFFFFF" FontSize="11" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- 檔案名稱 -->
+                    <TextBlock Text="{Binding ElementName=RootControl, Path=SelectedItem.Name}" Foreground="{StaticResource BrushTextPrimary}" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+                    <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,0,0,8" />
+
+                    <!-- 檔案屬性表格 -->
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="65" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="檔案大小:" Foreground="{StaticResource BrushTextMuted}" FontSize="11" />
+                        <TextBlock Grid.Column="1" Text="{Binding ElementName=RootControl, Path=SelectedItem.FormattedSize}" Foreground="{StaticResource BrushTextSecondary}" FontSize="11" />
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="65" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="修改日期:" Foreground="{StaticResource BrushTextMuted}" FontSize="11" />
+                        <TextBlock Grid.Column="1" Text="{Binding ElementName=RootControl, Path=SelectedItem.FormattedDate}" Foreground="{StaticResource BrushTextSecondary}" FontSize="11" />
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="65" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="完整路徑:" Foreground="{StaticResource BrushTextMuted}" FontSize="11" />
+                        <TextBlock Grid.Column="1" Text="{Binding ElementName=RootControl, Path=SelectedItem.FullPath}" Foreground="{StaticResource BrushTextMuted}" FontSize="10" TextWrapping="Wrap" />
+                    </Grid>
+
+                    <!-- 文字檔預覽內容區塊 (若是文字檔) -->
+                    <Border x:Name="TextPreviewBorder" Visibility="Collapsed" Background="{StaticResource BrushBackgroundDark}" CornerRadius="6" Padding="8" Margin="0,8,0,0" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1">
+                        <ScrollViewer Height="160" VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="TextPreviewContent" FontFamily="Consolas, Cascadia Code, Courier New" FontSize="11" Foreground="{StaticResource BrushTextPrimary}" TextWrapping="Wrap" />
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</UserControl>
