@@ -34,6 +34,20 @@ namespace BlitzFS.UI.ViewModels
         public string Extension => IsDirectory ? string.Empty : Path.GetExtension(Name).ToLowerInvariant();
 
         /// <summary>
+        /// 檔案類型描述 (例如: 資料夾、PNG 圖片、TXT 檔案)
+        /// </summary>
+        public string TypeName
+        {
+            get
+            {
+                if (IsDirectory) return "資料夾";
+                string ext = Extension;
+                if (string.IsNullOrEmpty(ext)) return "檔案";
+                return $"{ext.TrimStart('.').ToUpperInvariant()} 檔案";
+            }
+        }
+
+        /// <summary>
         /// 是否為圖片檔案
         /// </summary>
         public bool IsImage => Extension switch

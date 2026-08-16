@@ -169,6 +169,84 @@ namespace BlitzFS.UI.Views
             await ViewModel.TransferFilesAsync(args.SourcePath, args.TargetDir, isMove);
         }
 
+        #region 工具列排序選單處理
+
+        private void OnSortButtonClick(object sender, RoutedEventArgs e)
+        {
+            var targetPane = ViewModel.ActivePane ?? ViewModel.SelectedTab;
+            if (targetPane == null) return;
+
+            // 更新選單勾選狀態
+            MenuSortName.IsChecked = targetPane.IsSortByName;
+            MenuSortDate.IsChecked = targetPane.IsSortByDate;
+            MenuSortSize.IsChecked = targetPane.IsSortBySize;
+            MenuSortType.IsChecked = targetPane.IsSortByType;
+
+            MenuSortAsc.IsChecked = targetPane.IsSortAscending;
+            MenuSortDesc.IsChecked = targetPane.IsSortDescending;
+
+            MenuFoldersFirst.IsChecked = targetPane.FoldersFirst;
+
+            if (BtnSortMenu.ContextMenu != null)
+            {
+                BtnSortMenu.ContextMenu.PlacementTarget = BtnSortMenu;
+                BtnSortMenu.ContextMenu.IsOpen = true;
+            }
+        }
+
+        private void OnSortByNameClick(object sender, RoutedEventArgs e)
+        {
+            var targetPane = ViewModel.ActivePane ?? ViewModel.SelectedTab;
+            targetPane?.SortBy(SortField.Name, toggleDirectionIfSame: false);
+        }
+
+        private void OnSortByDateClick(object sender, RoutedEventArgs e)
+        {
+            var targetPane = ViewModel.ActivePane ?? ViewModel.SelectedTab;
+            targetPane?.SortBy(SortField.ModifiedDate, toggleDirectionIfSame: false);
+        }
+
+        private void OnSortBySizeClick(object sender, RoutedEventArgs e)
+        {
+            var targetPane = ViewModel.ActivePane ?? ViewModel.SelectedTab;
+            targetPane?.SortBy(SortField.Size, toggleDirectionIfSame: false);
+        }
+
+        private void OnSortByTypeClick(object sender, RoutedEventArgs e)
+        {
+            var targetPane = ViewModel.ActivePane ?? ViewModel.SelectedTab;
+            targetPane?.SortBy(SortField.Type, toggleDirectionIfSame: false);
+        }
+
+        private void OnSortAscendingClick(object sender, RoutedEventArgs e)
+        {
+            var targetPane = ViewModel.ActivePane ?? ViewModel.SelectedTab;
+            if (targetPane != null)
+            {
+                targetPane.CurrentSortDirection = SortDirection.Ascending;
+            }
+        }
+
+        private void OnSortDescendingClick(object sender, RoutedEventArgs e)
+        {
+            var targetPane = ViewModel.ActivePane ?? ViewModel.SelectedTab;
+            if (targetPane != null)
+            {
+                targetPane.CurrentSortDirection = SortDirection.Descending;
+            }
+        }
+
+        private void OnToggleFoldersFirstClick(object sender, RoutedEventArgs e)
+        {
+            var targetPane = ViewModel.ActivePane ?? ViewModel.SelectedTab;
+            if (targetPane != null)
+            {
+                targetPane.FoldersFirst = !targetPane.FoldersFirst;
+            }
+        }
+
+        #endregion
+
         private void OnMainWindowKeyDown(object sender, KeyEventArgs e)
         {
             // Ctrl+T: 新增分頁

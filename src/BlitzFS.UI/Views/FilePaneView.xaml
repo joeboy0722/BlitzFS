@@ -53,7 +53,7 @@
         </ContextMenu>
 
         <!-- 空白處右鍵選單 -->
-        <ContextMenu x:Key="BackgroundContextMenu">
+        <ContextMenu x:Key="BackgroundContextMenu" Opened="OnBackgroundContextMenuOpened">
             <MenuItem Header="新建資料夾" Click="OnContextNewFolderClick" InputGestureText="Ctrl+Shift+N">
                 <MenuItem.Icon>
                     <Path Data="{StaticResource IconNewFolder}" Fill="{StaticResource BrushAccentEmerald}" Width="12" Height="12" Stretch="Uniform" />
@@ -63,6 +63,21 @@
                 <MenuItem.Icon>
                     <Path Data="{StaticResource IconPaste}" Fill="{StaticResource BrushTextPrimary}" Width="12" Height="12" Stretch="Uniform" />
                 </MenuItem.Icon>
+            </MenuItem>
+            <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,2" />
+            <MenuItem Header="排序方式">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource IconSort}" Fill="{StaticResource BrushTextPrimary}" Width="12" Height="12" Stretch="Uniform" />
+                </MenuItem.Icon>
+                <MenuItem x:Name="CtxSortName" Header="名稱" Click="OnSortByNameClick" />
+                <MenuItem x:Name="CtxSortDate" Header="修改日期" Click="OnSortByDateClick" />
+                <MenuItem x:Name="CtxSortSize" Header="大小" Click="OnSortBySizeClick" />
+                <MenuItem x:Name="CtxSortType" Header="類型" Click="OnSortByTypeClick" />
+                <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,2" />
+                <MenuItem x:Name="CtxSortAsc" Header="遞增 (由小到大 / A到Z)" Click="OnSortAscendingClick" />
+                <MenuItem x:Name="CtxSortDesc" Header="遞減 (由大到小 / Z到A)" Click="OnSortDescendingClick" />
+                <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,2" />
+                <MenuItem x:Name="CtxFoldersFirst" Header="資料夾優先置頂" Click="OnToggleFoldersFirstClick" />
             </MenuItem>
             <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,2" />
             <MenuItem Header="重新整理" Click="OnRefreshClick" InputGestureText="F5">
@@ -146,7 +161,8 @@
                       MouseDoubleClick="OnItemDoubleClick"
                       PreviewMouseLeftButtonDown="OnListPreviewMouseLeftButtonDown"
                       MouseMove="OnListMouseMove"
-                      KeyDown="OnListViewKeyDown">
+                      KeyDown="OnListViewKeyDown"
+                      GridViewColumnHeader.Click="OnColumnHeaderClick">
                 <ListView.ItemContainerStyle>
                     <Style TargetType="ListViewItem" BasedOn="{StaticResource {x:Type ListViewItem}}">
                         <Setter Property="ContextMenu" Value="{StaticResource ItemContextMenu}" />
@@ -154,8 +170,40 @@
                 </ListView.ItemContainerStyle>
                 <ListView.View>
                     <GridView>
-                        <!-- 檔名與圖示欄位 -->
-                        <GridViewColumn Header="名稱" Width="300">
+                        <!-- 檔名與圖示欄位 (名稱) -->
+                        <GridViewColumn Width="280">
+                            <GridViewColumn.Header>
+                                <GridViewColumnHeader Tag="Name">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="名稱" VerticalAlignment="Center" />
+                                        <Path Margin="6,0,0,0" Width="8" Height="8" Stretch="Uniform" VerticalAlignment="Center" Fill="{StaticResource BrushAccentSky}">
+                                            <Path.Style>
+                                                <Style TargetType="Path">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortByName}" Value="True" />
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortAscending}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Setter Property="Data" Value="{StaticResource IconArrowUp}" />
+                                                        </MultiDataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortByName}" Value="True" />
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortDescending}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Setter Property="Data" Value="{StaticResource IconArrowDown}" />
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Path.Style>
+                                        </Path>
+                                    </StackPanel>
+                                </GridViewColumnHeader>
+                            </GridViewColumn.Header>
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -166,20 +214,125 @@
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
 
-                        <!-- 檔案大小欄位 -->
-                        <GridViewColumn Header="大小" Width="90">
+                        <!-- 修改日期欄位 -->
+                        <GridViewColumn Width="150">
+                            <GridViewColumn.Header>
+                                <GridViewColumnHeader Tag="ModifiedDate">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="修改日期" VerticalAlignment="Center" />
+                                        <Path Margin="6,0,0,0" Width="8" Height="8" Stretch="Uniform" VerticalAlignment="Center" Fill="{StaticResource BrushAccentSky}">
+                                            <Path.Style>
+                                                <Style TargetType="Path">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortByDate}" Value="True" />
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortAscending}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Setter Property="Data" Value="{StaticResource IconArrowUp}" />
+                                                        </MultiDataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortByDate}" Value="True" />
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortDescending}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Setter Property="Data" Value="{StaticResource IconArrowDown}" />
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Path.Style>
+                                        </Path>
+                                    </StackPanel>
+                                </GridViewColumnHeader>
+                            </GridViewColumn.Header>
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding FormattedSize}" Foreground="{StaticResource BrushTextSecondary}" TextAlignment="Right" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding FormattedDate}" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
 
-                        <!-- 修改日期欄位 -->
-                        <GridViewColumn Header="修改日期" Width="145">
+                        <!-- 檔案類型欄位 -->
+                        <GridViewColumn Width="100">
+                            <GridViewColumn.Header>
+                                <GridViewColumnHeader Tag="Type">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="類型" VerticalAlignment="Center" />
+                                        <Path Margin="6,0,0,0" Width="8" Height="8" Stretch="Uniform" VerticalAlignment="Center" Fill="{StaticResource BrushAccentSky}">
+                                            <Path.Style>
+                                                <Style TargetType="Path">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortByType}" Value="True" />
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortAscending}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Setter Property="Data" Value="{StaticResource IconArrowUp}" />
+                                                        </MultiDataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortByType}" Value="True" />
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortDescending}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Setter Property="Data" Value="{StaticResource IconArrowDown}" />
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Path.Style>
+                                        </Path>
+                                    </StackPanel>
+                                </GridViewColumnHeader>
+                            </GridViewColumn.Header>
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding FormattedDate}" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding TypeName}" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" />
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+
+                        <!-- 檔案大小欄位 -->
+                        <GridViewColumn Width="90">
+                            <GridViewColumn.Header>
+                                <GridViewColumnHeader Tag="Size">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="大小" VerticalAlignment="Center" />
+                                        <Path Margin="6,0,0,0" Width="8" Height="8" Stretch="Uniform" VerticalAlignment="Center" Fill="{StaticResource BrushAccentSky}">
+                                            <Path.Style>
+                                                <Style TargetType="Path">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortBySize}" Value="True" />
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortAscending}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Setter Property="Data" Value="{StaticResource IconArrowUp}" />
+                                                        </MultiDataTrigger>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortBySize}" Value="True" />
+                                                                <Condition Binding="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.IsSortDescending}" Value="True" />
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Setter Property="Data" Value="{StaticResource IconArrowDown}" />
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Path.Style>
+                                        </Path>
+                                    </StackPanel>
+                                </GridViewColumnHeader>
+                            </GridViewColumn.Header>
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding FormattedSize}" Foreground="{StaticResource BrushTextSecondary}" TextAlignment="Right" VerticalAlignment="Center" />
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>

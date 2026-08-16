@@ -392,5 +392,81 @@ namespace BlitzFS.UI.Views
         }
 
         #endregion
+
+        #region 排序事件處理
+
+        private void OnBackgroundContextMenuOpened(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel == null || sender is not ContextMenu menu) return;
+
+            if (menu.FindName("CtxSortName") is MenuItem miName) miName.IsChecked = ViewModel.IsSortByName;
+            if (menu.FindName("CtxSortDate") is MenuItem miDate) miDate.IsChecked = ViewModel.IsSortByDate;
+            if (menu.FindName("CtxSortSize") is MenuItem miSize) miSize.IsChecked = ViewModel.IsSortBySize;
+            if (menu.FindName("CtxSortType") is MenuItem miType) miType.IsChecked = ViewModel.IsSortByType;
+
+            if (menu.FindName("CtxSortAsc") is MenuItem miAsc) miAsc.IsChecked = ViewModel.IsSortAscending;
+            if (menu.FindName("CtxSortDesc") is MenuItem miDesc) miDesc.IsChecked = ViewModel.IsSortDescending;
+
+            if (menu.FindName("CtxFoldersFirst") is MenuItem miFolders) miFolders.IsChecked = ViewModel.FoldersFirst;
+        }
+
+        private void OnColumnHeaderClick(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel == null) return;
+
+            if (e.OriginalSource is GridViewColumnHeader header && header.Tag is string tagStr)
+            {
+                if (Enum.TryParse<SortField>(tagStr, out var field))
+                {
+                    ViewModel.SortBy(field);
+                }
+            }
+        }
+
+        private void OnSortByNameClick(object sender, RoutedEventArgs e)
+        {
+            ViewModel?.SortBy(SortField.Name, toggleDirectionIfSame: false);
+        }
+
+        private void OnSortByDateClick(object sender, RoutedEventArgs e)
+        {
+            ViewModel?.SortBy(SortField.ModifiedDate, toggleDirectionIfSame: false);
+        }
+
+        private void OnSortBySizeClick(object sender, RoutedEventArgs e)
+        {
+            ViewModel?.SortBy(SortField.Size, toggleDirectionIfSame: false);
+        }
+
+        private void OnSortByTypeClick(object sender, RoutedEventArgs e)
+        {
+            ViewModel?.SortBy(SortField.Type, toggleDirectionIfSame: false);
+        }
+
+        private void OnSortAscendingClick(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel != null)
+            {
+                ViewModel.CurrentSortDirection = SortDirection.Ascending;
+            }
+        }
+
+        private void OnSortDescendingClick(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel != null)
+            {
+                ViewModel.CurrentSortDirection = SortDirection.Descending;
+            }
+        }
+
+        private void OnToggleFoldersFirstClick(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel != null)
+            {
+                ViewModel.FoldersFirst = !ViewModel.FoldersFirst;
+            }
+        }
+
+        #endregion
     }
 }

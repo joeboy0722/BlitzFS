@@ -156,6 +156,29 @@
                             <TextBlock Text="刪除" FontSize="11" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
+                    <Separator Background="{StaticResource BrushBorderSubtle}" Margin="4,2" />
+
+                    <!-- 工具列排序下拉按鈕 (支援所有檢視模式) -->
+                    <Button x:Name="BtnSortMenu" Style="{StaticResource ToolbarButtonStyle}" Click="OnSortButtonClick" ToolTip="排序方式">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconSort}" Fill="{StaticResource BrushTextPrimary}" Width="12" Height="12" Stretch="Uniform" Margin="0,0,5,0" VerticalAlignment="Center" />
+                            <TextBlock Text="排序" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <Path Data="{StaticResource IconArrowDown}" Fill="{StaticResource BrushTextMuted}" Width="7" Height="7" Stretch="Uniform" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button.ContextMenu>
+                            <ContextMenu x:Name="SortContextMenu">
+                                <MenuItem x:Name="MenuSortName" Header="名稱" Click="OnSortByNameClick" />
+                                <MenuItem x:Name="MenuSortDate" Header="修改日期" Click="OnSortByDateClick" />
+                                <MenuItem x:Name="MenuSortSize" Header="大小" Click="OnSortBySizeClick" />
+                                <MenuItem x:Name="MenuSortType" Header="類型" Click="OnSortByTypeClick" />
+                                <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,2" />
+                                <MenuItem x:Name="MenuSortAsc" Header="遞增 (由小到大 / A到Z)" Click="OnSortAscendingClick" />
+                                <MenuItem x:Name="MenuSortDesc" Header="遞減 (由大到小 / Z到A)" Click="OnSortDescendingClick" />
+                                <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,2" />
+                                <MenuItem x:Name="MenuFoldersFirst" Header="資料夾優先置頂" Click="OnToggleFoldersFirstClick" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
                 </StackPanel>
 
                 <!-- 檢視切換與預覽面板開關 -->

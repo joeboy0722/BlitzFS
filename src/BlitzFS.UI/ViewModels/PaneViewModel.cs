@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BlitzFS.Bridge;
+using BlitzFS.UI.Services;
 
 namespace BlitzFS.UI.ViewModels
 {
@@ -20,6 +21,9 @@ namespace BlitzFS.UI.ViewModels
         private bool _isLoading;
         private ViewMode _viewMode = ViewMode.Details;
         private string _tabTitle = "D:\\";
+        private SortField _currentSortField = SortField.Name;
+        private SortDirection _currentSortDirection = SortDirection.Ascending;
+        private bool _foldersFirst = true;
 
         private readonly List<FileItemViewModel> _allItems = new();
         private readonly Stack<string> _backPathStack = new();
@@ -60,6 +64,111 @@ namespace BlitzFS.UI.ViewModels
         public bool IsThumbnailView => CurrentViewMode != ViewMode.Details;
         public bool IsMediumIconsView => CurrentViewMode == ViewMode.MediumIcons;
         public bool IsLargeIconsView => CurrentViewMode == ViewMode.LargeIcons;
+
+        #region 排序屬性
+
+        public SortField CurrentSortField
+        {
+            get => _currentSortField;
+            set
+            {
+                if (SetProperty(ref _currentSortField, value))
+                {
+                    NotifySortProperties();
+                    ApplySort();
+                }
+            }
+        }
+
+        public SortDirection CurrentSortDirection
+        {
+            get => _currentSortDirection;
+            set
+            {
+                if (SetProperty(ref _currentSortDirection, value))
+                {
+                    NotifySortProperties();
+                    ApplySort();
+                }
+            }
+        }
+
+        public bool FoldersFirst
+        {
+            get => _foldersFirst;
+            set
+            {
+                if (SetProperty(ref _foldersFirst, value))
+                {
+                    ApplySort();
+                }
+            }
+        }
+
+        public bool IsSortByName
+        {
+            get => CurrentSortField == SortField.Name;
+            set { if (value) CurrentSortField = SortField.Name; }
+        }
+
+        public bool IsSortBySize
+        {
+            get => CurrentSortField == SortField.Size;
+            set { if (value) CurrentSortField = SortField.Size; }
+        }
+
+        public bool IsSortByDate
+        {
+            get => CurrentSortField == SortField.ModifiedDate;
+            set { if (value) CurrentSortField = SortField.ModifiedDate; }
+        }
+
+        public bool IsSortByType
+        {
+            get => CurrentSortField == SortField.Type;
+            set { if (value) CurrentSortField = SortField.Type; }
+        }
+
+        public bool IsSortAscending
+        {
+            get => CurrentSortDirection == SortDirection.Ascending;
+            set { if (value) CurrentSortDirection = SortDirection.Ascending; }
+        }
+
+        public bool IsSortDescending
+        {
+            get => CurrentSortDirection == SortDirection.Descending;
+            set { if (value) CurrentSortDirection = SortDirection.Descending; }
+        }
+
+        private void NotifySortProperties()
+        {
+            OnPropertyChanged(nameof(IsSortByName));
+            OnPropertyChanged(nameof(IsSortBySize));
+            OnPropertyChanged(nameof(IsSortByDate));
+            OnPropertyChanged(nameof(IsSortByType));
+            OnPropertyChanged(nameof(IsSortAscending));
+            OnPropertyChanged(nameof(IsSortDescending));
+        }
+
+        /// <summary>
+        /// 切換或指定排序欄位 (若指定相同欄位則自動切換遞增/遞減)
+        /// </summary>
+        public void SortBy(SortField field, bool? toggleDirectionIfSame = true)
+        {
+            if (CurrentSortField == field && toggleDirectionIfSame == true)
+            {
+                CurrentSortDirection = CurrentSortDirection == SortDirection.Ascending
+                    ? SortDirection.Descending
+                    : SortDirection.Ascending;
+            }
+            else
+            {
+                CurrentSortField = field;
+            }
+        }
+
+        #endregion
 
         public char CurrentDrive
         {
@@ -239,15 +348,8 @@ namespace BlitzFS.UI.ViewModels
                         }
                     }
 
-                    // 目錄優先，依名稱排序
-                    list.Sort((a, b) =>
-                    {
-                        if (a.IsDirectory != b.IsDirectory)
-                        {
-                            return a.IsDirectory ? -1 : 1;
-                        }
-                        return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
-                    });
+                    // 依據當前排序設定 (資料夾優先、自然語言數字排序、欄位與方向) 進行排序
+                    SortItemList(list);
                 });
 
                 if (System.Windows.Application.Current != null)
@@ -355,6 +457,61 @@ namespace BlitzFS.UI.ViewModels
 
                 await NavigateToPathAsync(targetPath, recordHistory: false);
             }
+        }
+
+        /// <summary>
+        /// 對檔案清單依據當前排序規則進行排序 (支援 Windows 原生自然語言比較)
+        /// </summary>
+        public void SortItemList(List<FileItemViewModel> list)
+        {
+            list.Sort((a, b) =>
+            {
+                // 1. 資料夾優先置頂判斷
+                if (FoldersFirst && a.IsDirectory != b.IsDirectory)
+                {
+                    return a.IsDirectory ? -1 : 1;
+                }
+
+                // 2. 依照指定欄位比較
+                int result = 0;
+                switch (CurrentSortField)
+                {
+                    case SortField.Name:
+                        result = NaturalStringComparer.Instance.Compare(a.Name, b.Name);
+                        break;
+                    case SortField.Size:
+                        result = a.FileSize.CompareTo(b.FileSize);
+                        break;
+                    case SortField.ModifiedDate:
+                        result = a.ModifiedTime.CompareTo(b.ModifiedTime);
+                        break;
+                    case SortField.Type:
+                        result = string.Compare(a.TypeName, b.TypeName, StringComparison.OrdinalIgnoreCase);
+                        if (result == 0)
+                        {
+                            result = string.Compare(a.Extension, b.Extension, StringComparison.OrdinalIgnoreCase);
+                        }
+                        break;
+                }
+
+                // 3. 若值相同或未分出勝負，以名稱作為次要排序依據
+                if (result == 0)
+                {
+                    result = NaturalStringComparer.Instance.Compare(a.Name, b.Name);
+                }
+
+                // 4. 方向處理 (遞減反轉)
+                return CurrentSortDirection == SortDirection.Ascending ? result : -result;
+            });
+        }
+
+        /// <summary>
+        /// 重新套用排序並刷新篩選顯示
+        /// </summary>
+        public void ApplySort()
+        {
+            SortItemList(_allItems);
+            ApplyFilter();
         }
 
         /// <summary>

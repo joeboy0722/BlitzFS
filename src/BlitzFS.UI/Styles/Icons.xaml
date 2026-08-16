@@ -46,8 +46,15 @@
     <Geometry x:Key="IconSearch">M11 2a9 9 0 1 0 5.618 16.032l4.675 4.675a1 1 0 0 0 1.414-1.414l-4.675-4.675A9 9 0 0 0 11 2zm-7 9a7 7 0 1 1 14 0 7 7 0 0 1-14 0z</Geometry>
     <Geometry x:Key="IconRefresh">M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15</Geometry>
     <Geometry x:Key="IconArrowUp">M12 19V5m-7 7l7-7 7 7</Geometry>
+    <Geometry x:Key="IconArrowDown">M12 5v14m7-7l-7 7-7-7</Geometry>
     <Geometry x:Key="IconArrowLeft">M19 12H5m7 7l-7-7 7-7</Geometry>
     <Geometry x:Key="IconArrowRight">M5 12h14m-7-7l7 7-7 7</Geometry>
     <Geometry x:Key="IconQuickLook">M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z</Geometry>
+
+    <!-- 排序與狀態圖示 -->
+    <Geometry x:Key="IconSort">M3 6h18M6 12h12M10 18h4</Geometry>
+    <Geometry x:Key="IconSortAsc">M3 4h13M3 8h9M3 12h5m8 0l4-4m0 0l4 4m-4-4v12</Geometry>
+    <Geometry x:Key="IconSortDesc">M3 4h13M3 8h9M3 12h5m8 4l4 4m0 0l4-4m-4 4V4</Geometry>
+    <Geometry x:Key="IconCheck">M20 6L9 17l-5-5</Geometry>
 
 </ResourceDictionary>
