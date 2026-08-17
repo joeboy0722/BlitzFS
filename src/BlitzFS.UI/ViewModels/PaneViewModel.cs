@@ -16,6 +16,7 @@ namespace BlitzFS.UI.ViewModels
         private readonly CoreEngineWrapper _engine;
         private char _currentDrive = 'D';
         private string _currentPath = "D:\\";
+        private string _displayPath = "D:\\";
         private string _filterText = string.Empty;
         private FileItemViewModel? _selectedItem;
         private bool _isLoading;
@@ -44,6 +45,13 @@ namespace BlitzFS.UI.ViewModels
             get => _tabTitle;
             private set => SetProperty(ref _tabTitle, value);
         }
+
+        public string DisplayPath
+        {
+            get => string.IsNullOrEmpty(_displayPath) ? CurrentPath : _displayPath;
+            private set => SetProperty(ref _displayPath, value);
+        }
+
 
         public ViewMode CurrentViewMode
         {
@@ -206,11 +214,69 @@ namespace BlitzFS.UI.ViewModels
             }
         }
 
+        private readonly List<FileItemViewModel> _selectedItems = new();
+        public IReadOnlyList<FileItemViewModel> SelectedItems => _selectedItems;
+
+        public bool HasSelection => _selectedItems.Count > 0;
+
+        public string SelectedSummary
+        {
+            get
+            {
+                if (_selectedItems.Count == 0) return string.Empty;
+                ulong totalBytes = 0;
+                foreach (var item in _selectedItems)
+                {
+                    if (!item.IsDirectory) totalBytes += item.FileSize;
+                }
+                return $"|  已選取 {_selectedItems.Count} 個項目 ({FormatBytes(totalBytes)})";
+            }
+        }
+
+        public void UpdateSelection(IEnumerable<FileItemViewModel>? selectedList)
+        {
+            _selectedItems.Clear();
+            if (selectedList != null)
+            {
+                _selectedItems.AddRange(selectedList);
+            }
+            OnPropertyChanged(nameof(HasSelection));
+            OnPropertyChanged(nameof(SelectedSummary));
+        }
+
+        private static string FormatBytes(ulong bytes)
+        {
+            string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
+            int i = 0;
+            double dblBytes = bytes;
+            while (dblBytes >= 1024.0 && i < 4)
+            {
+                dblBytes /= 1024.0;
+                i++;
+            }
+            return $"{dblBytes:0.##} {suffixes[i]}";
+        }
+
+
+        public List<string> GetSelectedPaths()
+        {
+            if (_selectedItems.Count > 0)
+            {
+                return _selectedItems.Select(x => x.FullPath).Where(p => !string.IsNullOrEmpty(p)).ToList();
+            }
+            if (SelectedItem != null && !string.IsNullOrEmpty(SelectedItem.FullPath))
+            {
+                return new List<string> { SelectedItem.FullPath };
+            }
+            return new List<string>();
+        }
+
         public FileItemViewModel? SelectedItem
         {
             get => _selectedItem;
             set => SetProperty(ref _selectedItem, value);
         }
+
 
         public bool IsLoading
         {
@@ -226,6 +292,7 @@ namespace BlitzFS.UI.ViewModels
             _engine = engine;
             _currentDrive = initialDrive;
             _currentPath = $"{initialDrive}:\\";
+            _displayPath = _currentPath;
             UpdateTabTitle(_currentPath);
         }
 
@@ -233,6 +300,7 @@ namespace BlitzFS.UI.ViewModels
         {
             _engine = engine;
             _currentPath = string.IsNullOrEmpty(initialPath) ? "C:\\" : initialPath;
+            _displayPath = _currentPath;
             if (_currentPath.Length >= 2 && _currentPath[1] == ':')
             {
                 _currentDrive = char.ToUpper(_currentPath[0]);
@@ -245,6 +313,12 @@ namespace BlitzFS.UI.ViewModels
             if (string.IsNullOrEmpty(path))
             {
                 TabTitle = "首頁";
+                return;
+            }
+
+            if (BlitzFS.UI.Services.ShellFolderService.Instance.IsShellPath(path))
+            {
+                TabTitle = BlitzFS.UI.Services.ShellFolderService.Instance.GetFriendlyDisplayPath(path);
                 return;
             }
 
@@ -296,6 +370,11 @@ namespace BlitzFS.UI.ViewModels
         /// <summary>
         /// 載入指定路徑下的子項目 (採用 EnumerateFileSystemInfos 極速直讀與批次 UI 載入)
         /// </summary>
+        private string? _currentShellParentPath;
+
+        /// <summary>
+        /// 載入指定路徑下的子項目 (支援傳統磁碟零額外 IO 直讀與手機/便攜設備原生枚舉)
+        /// </summary>
         public async Task LoadPathItemsAsync(string path)
         {
             if (string.IsNullOrEmpty(path)) return;
@@ -306,11 +385,25 @@ namespace BlitzFS.UI.ViewModels
             try
             {
                 var list = new List<FileItemViewModel>();
+                string? detectedTitle = null;
+                string? detectedFriendlyPath = null;
 
                 await Task.Run(() =>
                 {
-                    if (Directory.Exists(path))
+                    // 1. 判斷是否為手機 / 便攜式 Shell 虛擬目錄
+                    if (BlitzFS.UI.Services.ShellFolderService.Instance.IsShellPath(path))
                     {
+                        var (shellItems, title, friendlyPath, parent) = BlitzFS.UI.Services.ShellFolderService.Instance.EnumerateShellFolder(path);
+                        list.AddRange(shellItems);
+                        detectedTitle = title;
+                        detectedFriendlyPath = friendlyPath;
+                        _currentShellParentPath = parent;
+                    }
+                    // 2. 傳統 Windows 檔案路徑 (C:\, D:\, E:\...)
+                    else if (Directory.Exists(path))
+                    {
+                        _currentShellParentPath = null;
+                        detectedFriendlyPath = path;
                         try
                         {
                             var dirInfo = new DirectoryInfo(path);
@@ -351,6 +444,20 @@ namespace BlitzFS.UI.ViewModels
                     // 依據當前排序設定 (資料夾優先、自然語言數字排序、欄位與方向) 進行排序
                     SortItemList(list);
                 });
+
+                if (!string.IsNullOrEmpty(detectedFriendlyPath))
+                {
+                    DisplayPath = detectedFriendlyPath;
+                }
+                else
+                {
+                    DisplayPath = path;
+                }
+
+                if (!string.IsNullOrEmpty(detectedTitle) && detectedTitle != path)
+                {
+                    TabTitle = detectedTitle;
+                }
 
                 if (System.Windows.Application.Current != null)
                 {
@@ -399,6 +506,10 @@ namespace BlitzFS.UI.ViewModels
                             UseShellExecute = true
                         });
                     }
+                    else if (BlitzFS.UI.Services.ShellFolderService.Instance.IsShellPath(item.FullPath))
+                    {
+                        BlitzFS.UI.Services.ShellFolderService.Instance.OpenShellFile(item.FullPath);
+                    }
                 }
                 catch {}
             }
@@ -411,6 +522,19 @@ namespace BlitzFS.UI.ViewModels
         {
             try
             {
+                if (BlitzFS.UI.Services.ShellFolderService.Instance.IsShellPath(CurrentPath))
+                {
+                    if (!string.IsNullOrEmpty(_currentShellParentPath))
+                    {
+                        await NavigateToPathAsync(_currentShellParentPath);
+                    }
+                    else
+                    {
+                        await NavigateToPathAsync("C:\\");
+                    }
+                    return;
+                }
+
                 string current = CurrentPath.TrimEnd('\\', '/');
                 if (current.Length <= 2)
                 {
@@ -426,6 +550,7 @@ namespace BlitzFS.UI.ViewModels
             }
             catch {}
         }
+
 
         /// <summary>
         /// 歷史上一頁
@@ -554,31 +679,46 @@ namespace BlitzFS.UI.ViewModels
         }
 
         /// <summary>
-        /// 刪除目前選取項目
+        /// 批次刪除選取的項目
         /// </summary>
         public async Task DeleteSelectedAsync()
         {
-            if (SelectedItem == null || string.IsNullOrEmpty(SelectedItem.FullPath)) return;
+            var targets = _selectedItems.Count > 0
+                ? _selectedItems.ToList()
+                : (SelectedItem != null ? new List<FileItemViewModel> { SelectedItem } : new());
+
+            if (targets.Count == 0) return;
 
             try
             {
-                if (SelectedItem.IsDirectory)
+                foreach (var item in targets)
                 {
-                    if (Directory.Exists(SelectedItem.FullPath))
+                    if (string.IsNullOrEmpty(item.FullPath)) continue;
+
+                    try
                     {
-                        Directory.Delete(SelectedItem.FullPath, true);
+                        if (item.IsDirectory)
+                        {
+                            if (Directory.Exists(item.FullPath))
+                            {
+                                Directory.Delete(item.FullPath, true);
+                            }
+                        }
+                        else
+                        {
+                            if (File.Exists(item.FullPath))
+                            {
+                                File.Delete(item.FullPath);
+                            }
+                        }
                     }
+                    catch {}
                 }
-                else
-                {
-                    if (File.Exists(SelectedItem.FullPath))
-                    {
-                        File.Delete(SelectedItem.FullPath);
-                    }
-                }
+
                 await RefreshAsync();
             }
             catch {}
         }
+
     }
 }

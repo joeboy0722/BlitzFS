@@ -30,10 +30,20 @@ namespace BlitzFS.UI.Views
 
             if (!File.Exists(item.FullPath))
             {
+                if (BlitzFS.UI.Services.ShellFolderService.Instance.IsShellPath(item.FullPath))
+                {
+                    TxtPreviewContent.Text = "便攜式設備 (手機) 檔案。\n\n按 [Enter] 或按兩下即可直接開啟。";
+                    ScrollText.Visibility = Visibility.Visible;
+                    return;
+                }
+
                 TxtPreviewContent.Text = "檔案不存在或無法存取。";
                 ScrollText.Visibility = Visibility.Visible;
                 return;
             }
+
+            string localPath = item.FullPath;
+
 
             string ext = item.Extension;
 
@@ -44,7 +54,7 @@ namespace BlitzFS.UI.Views
                 {
                     BitmapImage bitmap = new BitmapImage();
                     bitmap.BeginInit();
-                    bitmap.UriSource = new Uri(item.FullPath);
+                    bitmap.UriSource = new Uri(localPath);
                     bitmap.CacheOption = BitmapCacheOption.OnLoad;
                     bitmap.EndInit();
                     bitmap.Freeze();
@@ -67,7 +77,7 @@ namespace BlitzFS.UI.Views
                     ScrollText.Visibility = Visibility.Collapsed;
                     VideoPreview.Visibility = Visibility.Visible;
 
-                    VideoPreview.Source = new Uri(item.FullPath);
+                    VideoPreview.Source = new Uri(localPath);
                     VideoPreview.Play();
                     return;
                 }
@@ -81,7 +91,7 @@ namespace BlitzFS.UI.Views
 
             try
             {
-                using var reader = new StreamReader(item.FullPath);
+                using var reader = new StreamReader(localPath);
                 char[] buffer = new char[64 * 1024];
                 int read = reader.Read(buffer, 0, buffer.Length);
                 TxtPreviewContent.Text = new string(buffer, 0, read);
@@ -91,6 +101,7 @@ namespace BlitzFS.UI.Views
                 TxtPreviewContent.Text = $"無法讀取文字內容: {ex.Message}";
             }
         }
+
 
         private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
         {

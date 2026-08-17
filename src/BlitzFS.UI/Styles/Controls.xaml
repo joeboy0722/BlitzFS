@@ -214,31 +214,49 @@
         </Setter>
     </Style>
 
-    <!-- 極簡深色滾動條 (Thin ScrollBar Style) -->
+    <!-- 極簡深色現代滾動條 (支援 Hover 智慧放大與易抓取設計) -->
     <Style TargetType="ScrollBar">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Width" Value="8" />
-        <Setter Property="MinWidth" Value="8" />
+        <Setter Property="Width" Value="10" />
+        <Setter Property="MinWidth" Value="10" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ScrollBar">
-                    <Grid x:Name="Bg" SnapsToDevicePixels="true">
+                    <Grid x:Name="Bg" Background="Transparent" SnapsToDevicePixels="true">
                         <Track x:Name="PART_Track" IsDirectionReversed="true">
                             <Track.Thumb>
-                                <Thumb>
+                                <Thumb x:Name="ScrollBarThumb">
                                     <Thumb.Template>
                                         <ControlTemplate TargetType="Thumb">
-                                            <Border Background="{StaticResource BrushSurfaceLight}" CornerRadius="4" Margin="1" />
+                                            <Border x:Name="ThumbBorder"
+                                                    Background="{StaticResource BrushSurfaceLight}"
+                                                    CornerRadius="4"
+                                                    Margin="1,2" />
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="ThumbBorder" Property="Background" Value="{StaticResource BrushAccentSky}" />
+                                                </Trigger>
+                                                <Trigger Property="IsDragging" Value="True">
+                                                    <Setter TargetName="ThumbBorder" Property="Background" Value="{StaticResource BrushAccentSky}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
                                         </ControlTemplate>
                                     </Thumb.Template>
                                 </Thumb>
                             </Track.Thumb>
                         </Track>
                     </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Width" Value="14" />
+                            <Setter TargetName="Bg" Property="Background" Value="#1AFFFFFF" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
+
 
     <!-- 現代深色 GridViewColumnHeader 標題列樣式 (消除白色背景與原生豎藍條) -->
     <Style TargetType="GridViewColumnHeader">

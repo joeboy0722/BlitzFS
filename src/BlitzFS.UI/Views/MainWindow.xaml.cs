@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using BlitzFS.UI.ViewModels;
 
 namespace BlitzFS.UI.Views
@@ -9,11 +10,20 @@ namespace BlitzFS.UI.Views
     {
         public MainViewModel ViewModel { get; }
 
+        private const int WM_DEVICECHANGE = 0x0219;
+        private const int DBT_DEVICEARRIVAL = 0x8000;
+        private const int DBT_DEVICEREMOVECOMPLETE = 0x8004;
+
         public MainWindow()
         {
             InitializeComponent();
             ViewModel = new MainViewModel();
             DataContext = ViewModel;
+
+            ViewModel.Sidebar.NotificationRequested += (msg, isSuccess) =>
+            {
+                // 可擴充彈出 Toast 或更新狀態
+            };
         }
 
         public MainWindow(string initialPath) : this()
@@ -23,6 +33,40 @@ namespace BlitzFS.UI.Views
                 _ = ViewModel.SelectedTab.NavigateToPathAsync(initialPath);
             }
         }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            var source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
+            source?.AddHook(HwndMessageHook);
+        }
+
+        private System.Threading.CancellationTokenSource? _deviceRefreshCts;
+
+        private IntPtr HwndMessageHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_DEVICECHANGE)
+            {
+                _deviceRefreshCts?.Cancel();
+                _deviceRefreshCts = new System.Threading.CancellationTokenSource();
+                var token = _deviceRefreshCts.Token;
+
+                Dispatcher.InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        await System.Threading.Tasks.Task.Delay(600, token);
+                        if (!token.IsCancellationRequested)
+                        {
+                            ViewModel.Sidebar.LoadDrivesAndDevices();
+                        }
+                    }
+                    catch (System.Threading.Tasks.TaskCanceledException) {}
+                });
+            }
+            return IntPtr.Zero;
+        }
+
 
         private async void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
@@ -35,6 +79,7 @@ namespace BlitzFS.UI.Views
 
             await ViewModel.InitializeAsync();
         }
+
 
         private void OnMinimizeClick(object sender, RoutedEventArgs e)
         {
@@ -80,12 +125,16 @@ namespace BlitzFS.UI.Views
 
         private async void OnSidebarPathSelected(object? sender, string targetPath)
         {
+            if (string.IsNullOrWhiteSpace(targetPath)) return;
+
             var targetPane = ViewModel.ActivePane ?? ViewModel.SelectedTab;
             if (targetPane != null)
             {
                 await targetPane.NavigateToPathAsync(targetPath);
             }
         }
+
+
 
         private void OnPrimaryPaneFocused(object sender, RoutedEventArgs e)
         {
@@ -160,14 +209,23 @@ namespace BlitzFS.UI.Views
             }
             else
             {
-                // Windows 標準規範：同磁碟機移動、跨磁碟機複製
-                char srcDrive = char.ToUpperInvariant(args.SourcePath[0]);
-                char dstDrive = char.ToUpperInvariant(args.TargetDir[0]);
-                isMove = (srcDrive == dstDrive);
+                if (Services.ShellFolderService.Instance.IsShellPath(args.SourcePath) ||
+                    Services.ShellFolderService.Instance.IsShellPath(args.TargetDir))
+                {
+                    isMove = false; // 跨裝置預設為複製
+                }
+                else if (args.SourcePath.Length > 0 && args.TargetDir.Length > 0 && args.SourcePath[1] == ':' && args.TargetDir[1] == ':')
+                {
+                    // Windows 標準規範：同磁碟機移動、跨磁碟機複製
+                    char srcDrive = char.ToUpperInvariant(args.SourcePath[0]);
+                    char dstDrive = char.ToUpperInvariant(args.TargetDir[0]);
+                    isMove = (srcDrive == dstDrive);
+                }
             }
 
             await ViewModel.TransferFilesAsync(args.SourcePath, args.TargetDir, isMove);
         }
+
 
         #region 工具列排序選單處理
 

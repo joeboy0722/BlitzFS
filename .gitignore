@@ -29,6 +29,8 @@
 project.lock.json
 project.fragment.lock.json
 artifacts/
+*_wpftmp.csproj
+
 
 # --- C++ / CMake 編譯輸出與快取 ---
 dist/

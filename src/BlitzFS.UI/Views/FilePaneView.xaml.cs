@@ -84,11 +84,27 @@ namespace BlitzFS.UI.Views
 
         private async void OnItemDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (ViewModel?.SelectedItem != null)
+            if (ViewModel == null) return;
+
+            var element = e.OriginalSource as DependencyObject;
+            var container = FindVisualAncestor<ListBoxItem>(element);
+            if (container?.DataContext is FileItemViewModel item)
             {
-                await ViewModel.OpenItemAsync(ViewModel.SelectedItem);
+                await ViewModel.OpenItemAsync(item);
             }
         }
+
+
+        private void OnListSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ViewModel == null) return;
+            if (sender is ListBox listBox)
+            {
+                var selected = listBox.SelectedItems.OfType<FileItemViewModel>().ToList();
+                ViewModel.UpdateSelection(selected);
+            }
+        }
+
 
         private async void OnListViewKeyDown(object sender, KeyEventArgs e)
         {
@@ -117,11 +133,8 @@ namespace BlitzFS.UI.Views
             }
             else if (e.Key == Key.Delete)
             {
-                if (ViewModel.SelectedItem != null)
-                {
-                    await ViewModel.DeleteSelectedAsync();
-                    e.Handled = true;
-                }
+                await ViewModel.DeleteSelectedAsync();
+                e.Handled = true;
             }
             else if (e.Key == Key.F2)
             {
@@ -131,6 +144,18 @@ namespace BlitzFS.UI.Views
             else if (e.Key == Key.F5)
             {
                 await ViewModel.RefreshAsync();
+                e.Handled = true;
+            }
+            else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.A)
+            {
+                if (DetailsListView.IsVisible)
+                {
+                    DetailsListView.SelectAll();
+                }
+                else if (ThumbnailListBox.IsVisible)
+                {
+                    ThumbnailListBox.SelectAll();
+                }
                 e.Handled = true;
             }
             else if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.C)
@@ -172,19 +197,22 @@ namespace BlitzFS.UI.Views
 
         private void OnContextCopyClick(object sender, RoutedEventArgs e)
         {
-            if (ViewModel?.SelectedItem != null && !string.IsNullOrEmpty(ViewModel.SelectedItem.FullPath))
+            var paths = ViewModel?.GetSelectedPaths();
+            if (paths != null && paths.Count > 0)
             {
-                Services.AppClipboardService.SetCopy(new[] { ViewModel.SelectedItem.FullPath });
+                Services.AppClipboardService.SetCopy(paths);
             }
         }
 
         private void OnContextCutClick(object sender, RoutedEventArgs e)
         {
-            if (ViewModel?.SelectedItem != null && !string.IsNullOrEmpty(ViewModel.SelectedItem.FullPath))
+            var paths = ViewModel?.GetSelectedPaths();
+            if (paths != null && paths.Count > 0)
             {
-                Services.AppClipboardService.SetCut(new[] { ViewModel.SelectedItem.FullPath });
+                Services.AppClipboardService.SetCut(paths);
             }
         }
+
 
         private async void OnContextPasteClick(object sender, RoutedEventArgs e)
         {
@@ -198,7 +226,7 @@ namespace BlitzFS.UI.Views
                 {
                     if (string.IsNullOrEmpty(src)) continue;
 
-                    string? srcDir = Path.GetDirectoryName(src);
+                    string srcDir = GetParentDirectory(src);
                     if (!string.IsNullOrEmpty(srcDir) &&
                         string.Equals(srcDir.TrimEnd('\\', '/'), targetDir.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
                     {
@@ -213,6 +241,24 @@ namespace BlitzFS.UI.Views
                 await ViewModel.RefreshAsync();
             }
         }
+
+        private static string GetParentDirectory(string path)
+        {
+            if (path.Contains('|'))
+            {
+                var parts = path.Split('|', StringSplitOptions.RemoveEmptyEntries);
+                return parts.Length > 1 ? string.Join("|", parts.Take(parts.Length - 1)) : string.Empty;
+            }
+            try
+            {
+                return Path.GetDirectoryName(path) ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
 
         private async void OnContextRenameClick(object sender, RoutedEventArgs e)
         {
@@ -283,6 +329,42 @@ namespace BlitzFS.UI.Views
             }
         }
 
+        private void OnItemContextMenuOpened(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ContextMenu menu) return;
+            var pinItem = menu.FindName("MenuPinToQuickAccess") as MenuItem;
+            if (pinItem == null) return;
+
+            if (ViewModel?.SelectedItem != null && ViewModel.SelectedItem.IsDirectory)
+            {
+                pinItem.Visibility = Visibility.Visible;
+                bool isPinned = BlitzFS.UI.Services.QuickAccessService.Instance.IsPinned(ViewModel.SelectedItem.FullPath);
+                pinItem.Header = isPinned ? "從快速存取取消釘選" : "釘選到快速存取";
+            }
+            else
+            {
+                pinItem.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void OnContextPinToQuickAccessClick(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel?.SelectedItem != null && ViewModel.SelectedItem.IsDirectory)
+            {
+                string path = ViewModel.SelectedItem.FullPath;
+                var service = BlitzFS.UI.Services.QuickAccessService.Instance;
+                if (service.IsPinned(path))
+                {
+                    service.UnpinPath(path);
+                }
+                else
+                {
+                    service.PinPath(path, ViewModel.SelectedItem.Name);
+                }
+            }
+        }
+
+
         private async void OnContextNewFolderClick(object sender, RoutedEventArgs e)
         {
             if (ViewModel != null)
@@ -293,38 +375,115 @@ namespace BlitzFS.UI.Views
 
         #endregion
 
-        #region 拖曳支援 (Drag and Drop)
+        #region 拖曳支援 (Drag and Drop 與多選保護)
+
+        private FileItemViewModel? _pendingSingleSelectionItem = null;
+        private bool _dragStartedOnScrollBar = false;
 
         private void OnListPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _dragStartPoint = e.GetPosition(null);
             _isDragging = false;
+            _pendingSingleSelectionItem = null;
+            _dragStartedOnScrollBar = false;
+
+            var element = e.OriginalSource as DependencyObject;
+
+            // 1. 若點擊在 ScrollBar、Thumb 或 GridViewColumnHeader 上，絕對禁止啟動檔案拖曳
+            if (FindVisualAncestor<System.Windows.Controls.Primitives.ScrollBar>(element) != null ||
+                FindVisualAncestor<System.Windows.Controls.Primitives.Thumb>(element) != null ||
+                FindVisualAncestor<GridViewColumnHeader>(element) != null)
+            {
+                _dragStartedOnScrollBar = true;
+                return;
+            }
+
+            if (sender is ListBox listBox)
+            {
+                var container = FindVisualAncestor<ListBoxItem>(element);
+
+                // 2. 若點擊在空白處 (不是任何 ListBoxItem) -> 清空所有選取！
+                if (container == null)
+                {
+                    listBox.UnselectAll();
+                    listBox.SelectedItem = null;
+                    ViewModel?.UpdateSelection(null);
+                    return;
+                }
+
+                // 3. 若點擊在已選取的項目上 (且沒有按下 Ctrl 或 Shift) -> 延遲單選判定以允許整組多選拖曳！
+                if (Keyboard.Modifiers == ModifierKeys.None &&
+                    container.DataContext is FileItemViewModel item &&
+                    listBox.SelectedItems.Contains(item) &&
+                    listBox.SelectedItems.Count > 1)
+                {
+                    _pendingSingleSelectionItem = item;
+                    e.Handled = true;
+                    container.Focus();
+                }
+            }
+        }
+
+        private void OnListPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_pendingSingleSelectionItem != null)
+            {
+                if (sender is ListBox listBox && !_isDragging)
+                {
+                    listBox.SelectedItem = _pendingSingleSelectionItem;
+                    ViewModel?.UpdateSelection(new[] { _pendingSingleSelectionItem });
+                }
+                _pendingSingleSelectionItem = null;
+            }
+        }
+
+        private static T? FindVisualAncestor<T>(DependencyObject? current) where T : DependencyObject
+        {
+            while (current != null)
+            {
+                if (current is T match) return match;
+                current = System.Windows.Media.VisualTreeHelper.GetParent(current);
+            }
+            return null;
         }
 
         private void OnListMouseMove(object sender, MouseEventArgs e)
         {
-            if (e.LeftButton == MouseButtonState.Pressed && !_isDragging && ViewModel?.SelectedItem != null)
-            {
-                Point currentPos = e.GetPosition(null);
-                Vector diff = _dragStartPoint - currentPos;
+            if (_dragStartedOnScrollBar) return;
 
-                if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
-                    Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
+            if (e.LeftButton == MouseButtonState.Pressed && !_isDragging && ViewModel != null)
+            {
+                var paths = ViewModel.GetSelectedPaths();
+                if (paths.Count == 0 && ViewModel.SelectedItem != null)
                 {
-                    _isDragging = true;
-                    try
+                    paths.Add(ViewModel.SelectedItem.FullPath);
+                }
+
+                if (paths.Count > 0)
+                {
+                    Point currentPos = e.GetPosition(null);
+                    Vector diff = _dragStartPoint - currentPos;
+
+                    if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                        Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
                     {
-                        var dataObject = new DataObject(DataFormats.FileDrop, new[] { ViewModel.SelectedItem.FullPath });
-                        DragDrop.DoDragDrop(this, dataObject, DragDropEffects.Copy | DragDropEffects.Move);
-                    }
-                    catch {}
-                    finally
-                    {
-                        _isDragging = false;
+                        _isDragging = true;
+                        _pendingSingleSelectionItem = null;
+                        try
+                        {
+                            var dataObject = new DataObject(DataFormats.FileDrop, paths.ToArray());
+                            DragDrop.DoDragDrop(this, dataObject, DragDropEffects.Copy | DragDropEffects.Move);
+                        }
+                        catch {}
+                        finally
+                        {
+                            _isDragging = false;
+                        }
                     }
                 }
             }
         }
+
 
         private void OnFilePaneDragOver(object sender, DragEventArgs e)
         {
@@ -346,9 +505,21 @@ namespace BlitzFS.UI.Views
                     string[]? files = e.Data.GetData(DataFormats.FileDrop) as string[];
                     if (files != null && files.Length > 0)
                     {
-                        char srcDrive = char.ToUpperInvariant(files[0][0]);
-                        char dstDrive = char.ToUpperInvariant(ViewModel.CurrentPath[0]);
-                        e.Effects = (srcDrive == dstDrive) ? DragDropEffects.Move : DragDropEffects.Copy;
+                        if (Services.ShellFolderService.Instance.IsShellPath(files[0]) ||
+                            Services.ShellFolderService.Instance.IsShellPath(ViewModel.CurrentPath))
+                        {
+                            e.Effects = DragDropEffects.Copy;
+                        }
+                        else if (files[0].Length > 0 && ViewModel.CurrentPath.Length > 0)
+                        {
+                            char srcDrive = char.ToUpperInvariant(files[0][0]);
+                            char dstDrive = char.ToUpperInvariant(ViewModel.CurrentPath[0]);
+                            e.Effects = (srcDrive == dstDrive) ? DragDropEffects.Move : DragDropEffects.Copy;
+                        }
+                        else
+                        {
+                            e.Effects = DragDropEffects.Copy;
+                        }
                     }
                     else
                     {
@@ -378,7 +549,7 @@ namespace BlitzFS.UI.Views
                     {
                         if (string.IsNullOrEmpty(src)) continue;
 
-                        string? srcDir = Path.GetDirectoryName(src);
+                        string srcDir = GetParentDirectory(src);
                         if (!string.IsNullOrEmpty(srcDir) &&
                             string.Equals(srcDir.TrimEnd('\\', '/'), targetDir.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
                         {
@@ -390,6 +561,7 @@ namespace BlitzFS.UI.Views
                 }
             }
         }
+
 
         #endregion
 

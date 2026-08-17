@@ -16,6 +16,7 @@
     <!-- 主題強調色 (Accents) -->
     <Color x:Key="ColorAccentSky">#38BDF8</Color>
     <Color x:Key="ColorAccentIndigo">#6366F1</Color>
+    <Color x:Key="ColorAccentPurple">#A855F7</Color>
     <Color x:Key="ColorAccentEmerald">#10B981</Color>
     <Color x:Key="ColorAccentAmber">#F59E0B</Color>
     <Color x:Key="ColorAccentRose">#F43F5E</Color>
@@ -37,9 +38,11 @@
 
     <SolidColorBrush x:Key="BrushAccentSky" Color="{StaticResource ColorAccentSky}" />
     <SolidColorBrush x:Key="BrushAccentIndigo" Color="{StaticResource ColorAccentIndigo}" />
+    <SolidColorBrush x:Key="BrushAccentPurple" Color="{StaticResource ColorAccentPurple}" />
     <SolidColorBrush x:Key="BrushAccentEmerald" Color="{StaticResource ColorAccentEmerald}" />
     <SolidColorBrush x:Key="BrushAccentAmber" Color="{StaticResource ColorAccentAmber}" />
     <SolidColorBrush x:Key="BrushAccentRose" Color="{StaticResource ColorAccentRose}" />
+
 
     <SolidColorBrush x:Key="BrushBorderSubtle" Color="{StaticResource ColorBorderSubtle}" />
     <SolidColorBrush x:Key="BrushBorderStrong" Color="{StaticResource ColorBorderStrong}" />

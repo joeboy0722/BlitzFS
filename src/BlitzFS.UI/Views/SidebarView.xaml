@@ -5,31 +5,71 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:BlitzFS.UI.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="220"
+             d:DesignHeight="700" d:DesignWidth="230"
              Background="{StaticResource BrushSurfaceDark}">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <!-- 快速存取項目右鍵選單 -->
+        <ContextMenu x:Key="QuickAccessContextMenu">
+            <MenuItem Header="開啟" Click="OnSidebarItemContextOpenClick" FontWeight="SemiBold">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource IconFolder}" Fill="{StaticResource BrushAccentSky}" Width="12" Height="12" Stretch="Uniform" />
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="複製完整路徑" Click="OnSidebarItemCopyPathClick" />
+            <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,2" />
+            <MenuItem Header="從快速存取取消釘選" Click="OnUnpinQuickAccessClick">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource IconUnpin}" Fill="{StaticResource BrushAccentRose}" Width="12" Height="12" Stretch="Uniform" />
+                </MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
+
+        <!-- 可移動磁碟機右鍵選單 -->
+        <ContextMenu x:Key="RemovableDriveContextMenu">
+            <MenuItem Header="開啟磁碟" Click="OnSidebarItemContextOpenClick" FontWeight="SemiBold">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource IconUsb}" Fill="{StaticResource BrushAccentEmerald}" Width="12" Height="12" Stretch="Uniform" />
+                </MenuItem.Icon>
+            </MenuItem>
+            <MenuItem Header="複製完整路徑" Click="OnSidebarItemCopyPathClick" />
+            <Separator Background="{StaticResource BrushBorderSubtle}" Margin="0,2" />
+            <MenuItem Header="安全退出磁碟" Click="OnContextEjectDriveClick">
+                <MenuItem.Icon>
+                    <Path Data="{StaticResource IconEject}" Fill="{StaticResource BrushAccentAmber}" Width="12" Height="12" Stretch="Uniform" />
+                </MenuItem.Icon>
+            </MenuItem>
+        </ContextMenu>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="6,8">
         <StackPanel>
-            <!-- 快速存取分類標題 -->
-            <TextBlock Text="快速存取" Foreground="{StaticResource BrushTextMuted}" FontSize="11" FontWeight="Bold" Margin="8,4,8,4" />
+            <!-- 1. 快速存取分類 -->
+            <Grid Margin="8,6,8,4">
+                <TextBlock Text="快速存取" Foreground="{StaticResource BrushTextMuted}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+            </Grid>
 
-            <!-- 快速存取項目清單 -->
             <ItemsControl ItemsSource="{Binding QuickAccessItems}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Button Style="{StaticResource SidebarItemButtonStyle}" Click="OnSidebarItemClick" Tag="{Binding Path}" ToolTip="{Binding Path}">
+                        <Button Style="{StaticResource SidebarItemButtonStyle}" Click="OnSidebarItemClick" Tag="{Binding Path}" ToolTip="{Binding Path}" ContextMenu="{StaticResource QuickAccessContextMenu}">
                             <Grid VerticalAlignment="Center">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="22" />
                                     <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <!-- 圖示 (依 IconKey 尋找或 fallback) -->
-                                <Path Grid.Column="0" Data="{Binding IconKey, Converter={x:Null}}" Fill="{StaticResource BrushAccentSky}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="12" VerticalAlignment="Center" Margin="4,0,0,0" TextTrimming="CharacterEllipsis" />
+                                
+                                <!-- 向量圖示 (直接綁定 IconGeometry) -->
+                                <Path Grid.Column="0" Data="{Binding IconGeometry}" Fill="{StaticResource BrushAccentSky}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="12" VerticalAlignment="Center" Margin="4,0,4,0" TextTrimming="CharacterEllipsis" />
+                                
+                                <!-- 取消釘選快捷小按鈕 -->
+                                <Button Grid.Column="2" Width="18" Height="18" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="OnQuickUnpinButtonClick" Tag="{Binding Path}" ToolTip="從快速存取取消釘選" Visibility="{Binding IsCustomQuickAccess, Converter={StaticResource BoolToVis}}" Opacity="0.6">
+                                    <Path Data="{StaticResource IconClose}" Fill="{StaticResource BrushTextMuted}" Width="8" Height="8" Stretch="Uniform" />
+                                </Button>
                             </Grid>
                         </Button>
                     </DataTemplate>
@@ -38,11 +78,10 @@
 
             <Separator Background="{StaticResource BrushBorderSubtle}" Margin="4,10" />
 
-            <!-- 本機磁碟分類標題 -->
+            <!-- 2. 本機磁碟分類 -->
             <TextBlock Text="本機磁碟" Foreground="{StaticResource BrushTextMuted}" FontSize="11" FontWeight="Bold" Margin="8,4,8,4" />
 
-            <!-- 磁碟機項目清單 (附帶容量進度條) -->
-            <ItemsControl ItemsSource="{Binding DriveItems}">
+            <ItemsControl ItemsSource="{Binding FixedDrives}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Button Style="{StaticResource SidebarItemButtonStyle}" Click="OnSidebarItemClick" Tag="{Binding Path}" ToolTip="{Binding SpaceSummary}" Margin="2,2">
@@ -57,7 +96,7 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- 磁碟圖示 -->
-                                <Path Grid.Row="0" Grid.Column="0" Data="{StaticResource IconDrive}" Fill="{StaticResource BrushAccentAmber}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                <Path Grid.Row="0" Grid.Column="0" Data="{Binding IconGeometry}" Fill="{StaticResource BrushAccentAmber}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" />
 
                                 <!-- 磁碟名稱 -->
                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" TextTrimming="CharacterEllipsis" />
@@ -72,6 +111,103 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+
+            <!-- 3. 外接與可移動設備 (USB 隨身碟 / 外接磁碟) -->
+            <StackPanel Visibility="{Binding HasRemovableDrives, Converter={StaticResource BoolToVis}}">
+                <Separator Background="{StaticResource BrushBorderSubtle}" Margin="4,10" />
+                <TextBlock Text="外接設備 (USB)" Foreground="{StaticResource BrushAccentEmerald}" FontSize="11" FontWeight="Bold" Margin="8,4,8,4" />
+
+                <ItemsControl ItemsSource="{Binding RemovableDrives}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource SidebarItemButtonStyle}" Click="OnSidebarItemClick" Tag="{Binding Path}" ToolTip="{Binding SpaceSummary}" Margin="2,2" ContextMenu="{StaticResource RemovableDriveContextMenu}">
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="22" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- USB 圖示 -->
+                                    <Path Grid.Row="0" Grid.Column="0" Data="{Binding IconGeometry}" Fill="{StaticResource BrushAccentEmerald}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" />
+
+                                    <!-- 隨身碟名稱 -->
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" TextTrimming="CharacterEllipsis" />
+
+                                    <!-- 退出按鈕 -->
+                                    <Button Grid.Row="0" Grid.Column="2" Width="20" Height="20" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="OnEjectButtonClick" Tag="{Binding DriveLetter}" ToolTip="安全退出此磁碟" Margin="2,0,0,0">
+                                        <Path Data="{StaticResource IconEject}" Fill="{StaticResource BrushAccentAmber}" Width="10" Height="10" Stretch="Uniform" />
+                                    </Button>
+
+                                    <!-- 容量條 -->
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="4,4,0,2">
+                                        <ProgressBar Height="4" Maximum="100" Value="{Binding UsedPercent}" Background="{StaticResource BrushBackgroundDark}" Foreground="{StaticResource BrushAccentEmerald}" BorderThickness="0" Margin="0,0,0,2" />
+                                        <TextBlock Text="{Binding SpaceSummary}" Foreground="{StaticResource BrushTextMuted}" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- 4. 便攜式設備 (手機 / 平板 / 相機) -->
+            <StackPanel Visibility="{Binding HasPortableDevices, Converter={StaticResource BoolToVis}}">
+                <Separator Background="{StaticResource BrushBorderSubtle}" Margin="4,10" />
+                <TextBlock Text="便攜式設備 (手機)" Foreground="{StaticResource BrushAccentPurple}" FontSize="11" FontWeight="Bold" Margin="8,4,8,4" />
+
+                <ItemsControl ItemsSource="{Binding PortableDevices}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource SidebarItemButtonStyle}" Click="OnSidebarItemClick" Tag="{Binding Path}" ToolTip="{Binding Title}" Margin="2,2">
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="22" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- 手機圖示 -->
+                                    <Path Grid.Column="0" Data="{Binding IconGeometry}" Fill="{StaticResource BrushAccentPurple}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" />
+
+                                    <!-- 設備名稱 -->
+                                    <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- 5. 網路位置 (若有) -->
+            <StackPanel Visibility="{Binding HasNetworkDrives, Converter={StaticResource BoolToVis}}">
+                <Separator Background="{StaticResource BrushBorderSubtle}" Margin="4,10" />
+                <TextBlock Text="網路位置" Foreground="{StaticResource BrushAccentIndigo}" FontSize="11" FontWeight="Bold" Margin="8,4,8,4" />
+
+                <ItemsControl ItemsSource="{Binding NetworkDrives}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource SidebarItemButtonStyle}" Click="OnSidebarItemClick" Tag="{Binding Path}" ToolTip="{Binding SpaceSummary}" Margin="2,2">
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="22" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- 網路圖示 -->
+                                    <Path Grid.Column="0" Data="{Binding IconGeometry}" Fill="{StaticResource BrushAccentIndigo}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" />
+
+                                    <!-- 網路磁碟名稱 -->
+                                    <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{StaticResource BrushTextPrimary}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0,0,0" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

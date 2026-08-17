@@ -109,9 +109,10 @@ namespace BlitzFS.UI.ViewModels
         }
 
         public string FormattedSize => IsDirectory ? "<DIR>" : FormatBytes(FileSize);
-        public string FormattedDate => ModifiedTime.ToString("yyyy-MM-dd HH:mm:ss");
+        public string FormattedDate => ModifiedTime.Year < 1980 ? string.Empty : ModifiedTime.ToString("yyyy-MM-dd HH:mm:ss");
 
         public FileItemViewModel()
+
         {
         }
 
@@ -138,7 +139,7 @@ namespace BlitzFS.UI.ViewModels
 
         private async Task LoadThumbnailAsync()
         {
-            if (!IsDirectory && (IsImage || IsVideo || !string.IsNullOrEmpty(FullPath)))
+            if (!IsDirectory && (IsImage || IsVideo) && File.Exists(FullPath))
             {
                 var thumb = await ShellThumbnailService.GetThumbnailAsync(FullPath, 160);
                 if (thumb != null)
@@ -163,6 +164,8 @@ namespace BlitzFS.UI.ViewModels
                 Thumbnail = Icon;
             }
         }
+
+
 
         private static string FormatBytes(ulong bytes)
         {

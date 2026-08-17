@@ -243,27 +243,45 @@ namespace BlitzFS.UI.ViewModels
         }
 
         /// <summary>
-        /// 將檔案非同步極速複製或移動到目標路徑
+        /// 將檔案非同步極速複製或移動到目標路徑 (自動識別本地極速 Zero-Copy 傳輸或跨裝置 MTP 傳輸)
         /// </summary>
         public async Task TransferFilesAsync(string sourcePath, string targetDirectory, bool isMove)
         {
             if (string.IsNullOrEmpty(sourcePath) || string.IsNullOrEmpty(targetDirectory)) return;
 
-            string fileName = Path.GetFileName(sourcePath);
-            string destinationPath = Path.Combine(targetDirectory, fileName);
+            string fileName = sourcePath.Contains('|') ? sourcePath.Split('|')[^1] : Path.GetFileName(sourcePath);
 
             TransferHub.IsTransferring = true;
             TransferHub.CurrentFileName = fileName;
 
-            var progress = new Progress<TransferProgressInfo>(info =>
-            {
-                TransferHub.UpdateProgress(info);
-            });
-
             try
             {
-                await _engine.StartTransferAsync(sourcePath, destinationPath, isMove, progress);
-                StatusMessage = $"{(isMove ? "移動" : "複製")}完成: {fileName}";
+                // 1. 若涉及手機/MTP 跨裝置傳輸
+                if (Services.ShellFolderService.Instance.IsShellPath(sourcePath) ||
+                    Services.ShellFolderService.Instance.IsShellPath(targetDirectory))
+                {
+                    bool success = await Services.ShellFolderService.Instance.TransferShellItemAsync(sourcePath, targetDirectory, isMove);
+                    if (success)
+                    {
+                        StatusMessage = $"{(isMove ? "移動" : "複製")}完成: {fileName}";
+                    }
+                    else
+                    {
+                        StatusMessage = $"傳輸未完成或已取消: {fileName}";
+                    }
+                }
+                else
+                {
+                    // 2. 純本地磁碟：走底層 C++/Rust Zero-Copy 極速引擎
+                    string destinationPath = Path.Combine(targetDirectory, fileName);
+                    var progress = new Progress<TransferProgressInfo>(info =>
+                    {
+                        TransferHub.UpdateProgress(info);
+                    });
+
+                    await _engine.StartTransferAsync(sourcePath, destinationPath, isMove, progress);
+                    StatusMessage = $"{(isMove ? "移動" : "複製")}完成: {fileName}";
+                }
 
                 if (SelectedTab != null) await SelectedTab.RefreshAsync();
                 if (SecondaryPane != null) await SecondaryPane.RefreshAsync();
@@ -277,6 +295,7 @@ namespace BlitzFS.UI.ViewModels
                 TransferHub.IsTransferring = false;
             }
         }
+
 
         public void Dispose()
         {

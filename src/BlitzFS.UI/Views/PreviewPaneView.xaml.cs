@@ -54,8 +54,8 @@ namespace BlitzFS.UI.Views
             EmptyHintTextBlock.Visibility = Visibility.Collapsed;
             PreviewScrollViewer.Visibility = Visibility.Visible;
 
-            // 1. 影片格式：先顯示首格高清縮圖與中央播放按鈕 (0 負擔、0 卡頓)
-            if (item.IsVideo && File.Exists(item.FullPath))
+            // 1. 影片格式：顯示播放按鈕與縮圖 (支援本地與 MTP 手機影片)
+            if (item.IsVideo)
             {
                 _currentVideoPath = item.FullPath;
                 StaticPreviewImage.Visibility = Visibility.Visible;
@@ -72,7 +72,7 @@ namespace BlitzFS.UI.Views
                 VideoControlsOverlay.Visibility = Visibility.Collapsed;
             }
 
-            // 2. 文字檔案內容預覽
+            // 2. 本地文字檔案內容預覽
             if (!item.IsDirectory && !string.IsNullOrEmpty(item.FullPath) && File.Exists(item.FullPath))
             {
                 string ext = item.Extension;
@@ -105,7 +105,16 @@ namespace BlitzFS.UI.Views
 
         private void StartVideoPlayback()
         {
-            if (string.IsNullOrEmpty(_currentVideoPath) || !File.Exists(_currentVideoPath)) return;
+            if (string.IsNullOrEmpty(_currentVideoPath)) return;
+
+            // 若為手機/MTP 檔案，直接以原生關聯應用程式零複製播放
+            if (BlitzFS.UI.Services.ShellFolderService.Instance.IsShellPath(_currentVideoPath))
+            {
+                BlitzFS.UI.Services.ShellFolderService.Instance.OpenShellFile(_currentVideoPath);
+                return;
+            }
+
+            if (!File.Exists(_currentVideoPath)) return;
 
             try
             {
@@ -124,6 +133,8 @@ namespace BlitzFS.UI.Views
                 StopVideo();
             }
         }
+
+
 
         private void StopVideo()
         {
